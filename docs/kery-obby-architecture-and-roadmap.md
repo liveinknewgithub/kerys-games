@@ -40,7 +40,7 @@ Everything executes in a single browser tab. There are no API calls, third-party
 | Loop | `requestAnimationFrame`, `update()`, then `render()` | The measured frame delta is discarded and a fixed update is performed once per rendered frame. |
 | State | One mutable `state` object plus module-level shop/input variables | Modes are `MENU`, `PLAY`, `DEAD`, `WIN`, and `SHOP`. |
 | Physics | Hand-written velocity, gravity, friction, AABB platform collision, sampled spinner collision | Compact and understandable, but tied to render rate and not yet covered by tests. |
-| Content | Three authored levels, then deterministic procedural generation | Eight visual themes cycle indefinitely; difficulty caps after 15 increments. |
+| Content | Stages 1–3 and milestone Stage 5 are authored; other stages use deterministic procedural generation | Eight visual themes cycle indefinitely; difficulty caps after 15 increments. |
 | Economy | Coins from pickups, stage completion, and five-stage milestones | All balances and purchases are client-authoritative and editable via browser tools. This is fine until competition or real-money value exists. |
 | Cosmetics | 10 hats, 14 colors, 11 faces, and 7 pets | Rendering behavior and catalog data are mixed together in object literals. “VIP” is a visual label; every item is purchased with earned coins. |
 | Persistence | One `localStorage` record: `kery_obby_save` | Saves coins, equipped/owned items, and touched checkpoint identifiers; there is no schema version or migration. |
@@ -152,4 +152,4 @@ The highest-leverage next pull request should be a narrow stabilization change: 
 
 ## Backup provenance
 
-The checked-in `index.html` was retrieved directly from the live deployment and left byte-for-byte unchanged. At capture time, both remote and local files produced SHA-256 `f77863c8f37259cd2b0387d4247a9c9e39702e18dd4bf0d8daab2d0b2677b93f`. The deployment returned HTTP 200 with `content-type: text/html; charset=utf-8`, `cache-control: public, max-age=0, must-revalidate`, `x-content-type-options: nosniff`, `referrer-policy: strict-origin-when-cross-origin`, and `x-robots-tag: noindex`.
+The original deployed `index.html` is preserved byte-for-byte at `snapshots/2026-08-27/index.html`; the root file is the actively developed game. At capture time, both remote and preserved files produced SHA-256 `f77863c8f37259cd2b0387d4247a9c9e39702e18dd4bf0d8daab2d0b2677b93f`. The deployment returned HTTP 200 with `content-type: text/html; charset=utf-8`, `cache-control: public, max-age=0, must-revalidate`, `x-content-type-options: nosniff`, `referrer-policy: strict-origin-when-cross-origin`, and `x-robots-tag: noindex`.
