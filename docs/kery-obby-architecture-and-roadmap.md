@@ -1,7 +1,9 @@
 # Kery Obby: architecture assessment and roadmap
 
-Assessment date: 2026-08-27  
-Source reviewed: deployed `index.html`, 1,414 lines / 61,215 bytes  
+Assessment date: 2026-08-27
+
+Source reviewed: deployed `index.html`, 1,414 lines / 61,215 bytes
+
 Deployment: Cloudflare Pages at `https://master.kery-obby.pages.dev/`
 
 ## Executive assessment
