@@ -188,6 +188,8 @@ const shopItems={
 // Player equipment
 let equipped={hat:'hat_none',color:'col_red',face:'face_normal',pet:'pet_none'};
 let coins=0;
+let moons=0;
+const SKIP_COST=10000;
 let shopCat=0;
 let shopScroll=0;
 let showVIPPopup=false;
@@ -210,7 +212,7 @@ function getPreviewEquipped(){
 
 // Save/load
 function saveProgress(){
-  const data={coins,equipped,owned:{},touchedCPs:Array.from(state.touchedCPs)};
+  const data={coins,moons,equipped,owned:{},touchedCPs:Array.from(state.touchedCPs)};
   for(const cat of SHOP_CATS)shopItems[cat].forEach(it=>{if(it.owned)data.owned[it.id]=true;});
   try{localStorage.setItem('kery_obby_save',JSON.stringify(data));}catch(e){}
 }
@@ -220,6 +222,7 @@ function loadProgress(){
     if(!raw)return;
     const data=JSON.parse(raw);
     coins=data.coins||0;
+    moons=data.moons||0;
     if(data.equipped)equipped={...equipped,...data.equipped};
     if(data.owned)for(const cat of SHOP_CATS)shopItems[cat].forEach(it=>{if(data.owned[it.id])it.owned=true;});
     if(data.touchedCPs&&Array.isArray(data.touchedCPs)){window._loadedCPs=new Set(data.touchedCPs);}
@@ -243,7 +246,8 @@ let state={
   deadTimer:0,
   levelFlash:0,levelFlashText:'',
   coinsCollected:[],
-  levelCoins:[]
+  levelCoins:[],
+  levelMoons:[]
 };
 
 const keys={};
@@ -271,6 +275,14 @@ function generateLevelCoins(lvIndex){
     }
   }
   return lvCoins;
+}
+
+function generateLevelMoons(lvIndex){
+  const lv=getLevel(lvIndex);
+  const plats=lv.platforms||[];
+  if(plats.length<2)return [];
+  const pl=plats[Math.max(1,plats.length-2)];
+  return [{x:pl.x+pl.w/2-10,y:pl.y-38,w:20,h:20,collected:false}];
 }
 
 // Level definitions
@@ -463,6 +475,20 @@ function generateLevel(lvIndex){
     checkpoints.push({x:platforms[i].x+platforms[i].w/2,y:platforms[i].y-40});
   }
 
+  // Neon City checkpoint 2: extra landing so the lava gap is jumpable
+  if(theme.name==='Neon City'){
+    if(checkpoints.length<2&&platforms.length>5){
+      const p=platforms[Math.min(6,platforms.length-2)];
+      checkpoints.push({x:p.x+p.w/2,y:p.y-40});
+    }
+    if(checkpoints[1]){
+      const cp=checkpoints[1];
+      platforms.splice(platforms.length-1,0,{
+        x:cp.x+45,y:cp.y+28,w:100,h:40,color:theme.colors[2]
+      });
+    }
+  }
+
   return{
     name:`Stage ${lvIndex+1}: ${theme.name}`,
     platforms,lava,moving,spinning,checkpoints,
@@ -620,12 +646,52 @@ function startGame(){
   state.touchedCPs=new Set();
   // Generate coins for first few levels (more generated on the fly)
   state.levelCoins=[];
-  for(let i=0;i<5;i++)state.levelCoins[i]=generateLevelCoins(i);
+  state.levelMoons=[];
+  for(let i=0;i<5;i++){
+    state.levelCoins[i]=generateLevelCoins(i);
+    state.levelMoons[i]=generateLevelMoons(i);
+  }
   resetPlayer(false);
   showLevelFlash(levels[0].name);
 }
 
 function showLevelFlash(text){state.levelFlash=120;state.levelFlashText=text;}
+
+function completeLevel(skipped){
+  const p=state.player;
+  if(!skipped){
+    const stageBonus=5+state.currentLevel*3;
+    coins+=stageBonus;
+    moons+=1;
+  }
+  saveProgress();
+  if((state.currentLevel+1)%5===0){
+    win();
+    return;
+  }
+  state.currentLevel++;
+  if(!state.levelCoins[state.currentLevel])state.levelCoins[state.currentLevel]=generateLevelCoins(state.currentLevel);
+  if(!state.levelMoons[state.currentLevel])state.levelMoons[state.currentLevel]=generateLevelMoons(state.currentLevel);
+  p.x=50;p.y=400;p.vx=0;p.vy=0;
+  state.checkpoint={x:50,y:400,level:state.currentLevel};
+  const nl=getLevel(state.currentLevel);
+  showLevelFlash(skipped?('SKIP → '+nl.name):(nl.name+' (+'+(5+(state.currentLevel-1)*3)+'🪙)'));
+  sfxCheckpoint();
+  spawnParticles(p.x+15,p.y+18,'#FFD700',15,6);
+}
+
+function trySkipLevel(){
+  if(state.mode!==MODES.PLAY)return;
+  if(moons<SKIP_COST){
+    sfxLocked();
+    showLevelFlash('Need 🌙 '+SKIP_COST+' moons');
+    return;
+  }
+  moons-=SKIP_COST;
+  saveProgress();
+  sfxBuy();
+  completeLevel(true);
+}
 
 function die(){
   sfxDeath();state.deaths++;
@@ -733,27 +799,8 @@ function update(dt){
   const fin=lv.finish;
   if(lv.isBoss&&!bossIsDown()){/* flag locked until the boss is down */}
   else if(Math.hypot(p.x+15-fin.x,p.y+18-fin.y)<50){
-    // Award coins for completing a stage
-    const stageBonus=5+state.currentLevel*3;
-    coins+=stageBonus;
-    saveProgress();
-    
-    // Milestone celebration every 5 levels
-    if((state.currentLevel+1)%5===0){
-      win();
-      return;
-    }
-    
-    state.currentLevel++;
-    // Generate coins for new level
-    if(!state.levelCoins[state.currentLevel]){
-      state.levelCoins[state.currentLevel]=generateLevelCoins(state.currentLevel);
-    }
-    p.x=50;p.y=400;p.vx=0;p.vy=0;
-    state.checkpoint={x:50,y:400,level:state.currentLevel};
-    const nl=getLevel(state.currentLevel);
-    showLevelFlash(nl.name+' (+'+stageBonus+'🪙)');sfxCheckpoint();
-    spawnParticles(p.x+15,p.y+18,'#FFD700',15,6);
+    completeLevel(false);
+    return;
   }
 
   state.camera.x+=(p.x-300-state.camera.x)*0.08;
