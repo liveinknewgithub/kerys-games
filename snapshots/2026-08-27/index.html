@@ -46,7 +46,6 @@ function sfxWin(){[0,100,200,300,400].forEach((d,i)=>setTimeout(()=>playSound(50
 function sfxCoin(){playSound(800,0.1,'sine',0.12);setTimeout(()=>playSound(1200,0.15,'sine',0.1),80);}
 function sfxBuy(){playSound(600,0.1,'sine');setTimeout(()=>playSound(800,0.1,'sine'),100);setTimeout(()=>playSound(1000,0.15,'sine'),200);}
 function sfxLocked(){playSound(200,0.2,'square',0.1);playSound(150,0.15,'square',0.08);}
-function sfxHit(){playSound(180,0.12,'square',0.15);playSound(90,0.2,'sawtooth',0.1);}
 
 // ===================== DRESS-UP SHOP =====================
 const SHOP_CATS=['Hats','Colors','Faces','Pets'];
@@ -188,8 +187,6 @@ const shopItems={
 // Player equipment
 let equipped={hat:'hat_none',color:'col_red',face:'face_normal',pet:'pet_none'};
 let coins=0;
-let moons=0;
-const SKIP_COST=10000;
 let shopCat=0;
 let shopScroll=0;
 let showVIPPopup=false;
@@ -212,7 +209,7 @@ function getPreviewEquipped(){
 
 // Save/load
 function saveProgress(){
-  const data={coins,moons,equipped,owned:{},touchedCPs:Array.from(state.touchedCPs)};
+  const data={coins,equipped,owned:{},touchedCPs:Array.from(state.touchedCPs)};
   for(const cat of SHOP_CATS)shopItems[cat].forEach(it=>{if(it.owned)data.owned[it.id]=true;});
   try{localStorage.setItem('kery_obby_save',JSON.stringify(data));}catch(e){}
 }
@@ -222,7 +219,6 @@ function loadProgress(){
     if(!raw)return;
     const data=JSON.parse(raw);
     coins=data.coins||0;
-    moons=data.moons||0;
     if(data.equipped)equipped={...equipped,...data.equipped};
     if(data.owned)for(const cat of SHOP_CATS)shopItems[cat].forEach(it=>{if(data.owned[it.id])it.owned=true;});
     if(data.touchedCPs&&Array.isArray(data.touchedCPs)){window._loadedCPs=new Set(data.touchedCPs);}
@@ -241,13 +237,10 @@ let state={
   touchedCPs:window._loadedCPs||new Set(),
   currentLevel:0,
   particles:[],
-  boss:null,
-  bossShots:[],
   deadTimer:0,
   levelFlash:0,levelFlashText:'',
   coinsCollected:[],
-  levelCoins:[],
-  levelMoons:[]
+  levelCoins:[]
 };
 
 const keys={};
@@ -256,9 +249,6 @@ let touchLeft=false,touchRight=false,touchJump=false;
 // Generate coins for each level
 function generateLevelCoins(lvIndex){
   const lv=getLevel(lvIndex);
-  if(Array.isArray(lv.coinPath)){
-    return lv.coinPath.map(c=>({x:c.x,y:c.y,w:16,h:16,collected:false}));
-  }
   const lvCoins=[];
   lv.platforms.forEach((pl,i)=>{
     if(i>0&&((i*7+lvIndex*13)%10)<6){
@@ -275,14 +265,6 @@ function generateLevelCoins(lvIndex){
     }
   }
   return lvCoins;
-}
-
-function generateLevelMoons(lvIndex){
-  const lv=getLevel(lvIndex);
-  const plats=lv.platforms||[];
-  if(plats.length<2)return [];
-  const pl=plats[Math.max(1,plats.length-2)];
-  return [{x:pl.x+pl.w/2-10,y:pl.y-38,w:20,h:20,collected:false}];
 }
 
 // Level definitions
@@ -313,7 +295,6 @@ const levels=[
       {x:800,y:450,w:80,h:40,color:'#E74C3C'},
       {x:1050,y:400,w:100,h:40,color:'#FF6B6B'},
       {x:1300,y:350,w:80,h:40,color:'#E74C3C'},
-      {x:1405,y:375,w:90,h:40,color:'#FF6B6B'},
       {x:1500,y:400,w:200,h:40,color:'#FFD700'},
     ],
     lava:[{x:150,y:560,w:1600,h:40}],
@@ -367,46 +348,6 @@ const THEMES=[
   {name:'Desert',colors:['#F39C12','#E67E22','#D4AC0D','#B7950B'],bg1:'#FDEBD0',bg2:'#FAD7A0'},
   {name:'Cloud Nine',colors:['#ECF0F1','#BDC3C7','#95A5A6','#5DADE2'],bg1:'#D6EAF8',bg2:'#EBF5FB'},
 ];
-
-// Hand-authored milestone stages override procedural generation.
-const AUTHORED_LEVELS={
-  4:{
-    name:'Stage 5: Deep Space Training Run',
-    platforms:[
-      {x:0,y:500,w:220,h:40,color:'#4A0E82'},
-      {x:290,y:480,w:140,h:40,color:'#6C3483'},
-      {x:510,y:450,w:140,h:40,color:'#8E44AD'},
-      {x:730,y:470,w:220,h:40,color:'#BB8FCE'},
-      {x:1060,y:450,w:130,h:40,color:'#4A0E82'},
-      {x:1390,y:460,w:180,h:40,color:'#6C3483'},
-      {x:1680,y:420,w:120,h:40,color:'#8E44AD'},
-      {x:2140,y:390,w:220,h:40,color:'#FFD700'},
-    ],
-    lava:[{x:220,y:560,w:2140,h:40}],
-    moving:[
-      {x:1260,y:430,w:100,h:20,color:'#FF9F43',sx:1210,ex:1310,speed:0.75,axis:'x'},
-      {x:1920,y:405,w:100,h:20,color:'#9B59B6',sy:340,ey:470,speed:0.7,axis:'y'},
-    ],
-    spinning:[],
-    checkpoints:[
-      {x:830,y:430},
-      {x:1480,y:420},
-    ],
-    coinPath:[
-      {x:238,y:450},{x:263,y:435},
-      {x:450,y:425},{x:480,y:410},
-      {x:670,y:405},{x:700,y:390},
-      {x:975,y:420},{x:1015,y:400},
-      {x:1205,y:390},{x:1260,y:365},{x:1345,y:400},
-      {x:1595,y:400},{x:1635,y:375},
-      {x:1835,y:360},{x:1880,y:340},
-      {x:2045,y:335},{x:2090,y:315},
-      {x:2190,y:335},{x:2240,y:325},{x:2290,y:335},
-    ],
-    finish:{x:2240,y:350},
-    theme:THEMES[1],
-  }
-};
 
 function seededRandom(seed){
   let s=seed;
@@ -475,23 +416,6 @@ function generateLevel(lvIndex){
     checkpoints.push({x:platforms[i].x+platforms[i].w/2,y:platforms[i].y-40});
   }
 
-  // Stage 9 Neon City: reachable block OVER the spinner before checkpoint 2
-  if(lvIndex===8&&theme.name==='Neon City'&&checkpoints[1]&&spinning.length){
-    const cp2=checkpoints[1];
-    const spinner=spinning.filter(s=>s.x<cp2.x).sort((a,b)=>b.x-a.x)[0]||spinning[0];
-    const before=platforms.filter(p=>p.x+p.w<spinner.x-10).sort((a,b)=>b.x-a.x)[0];
-    if(before){
-      const gapStart=before.x+before.w;
-      const gapEnd=spinner.x-30;
-      platforms.push({
-        x:gapStart+20,y:Math.min(before.y,spinner.y+20)-10,w:Math.max(70,Math.min(90,gapEnd-gapStart-40)),h:40,color:'#F5FF00'
-      });
-    }
-    platforms.push({
-      x:spinner.x-55,y:spinner.y-50,w:120,h:28,color:'#F5FF00'
-    });
-  }
-
   return{
     name:`Stage ${lvIndex+1}: ${theme.name}`,
     platforms,lava,moving,spinning,checkpoints,
@@ -500,114 +424,12 @@ function generateLevel(lvIndex){
   };
 }
 
-const BOSS_KINDS=['hopper','charger','shooter'];
-const BOSS_NAMES={hopper:'Hopper Prime',charger:'Ram-Ram',shooter:'Lava Lord'};
-function isBossStage(idx){
-  // Stage 10 always. Extra boss arenas at 6, 14, 22, 28...
-  if(idx===9)return true;
-  if(idx<5||AUTHORED_LEVELS[idx])return false;
-  return idx%8===5;
-}
-function generateBossLevel(lvIndex){
-  const theme=THEMES[lvIndex%THEMES.length];
-  const kind=BOSS_KINDS[lvIndex%BOSS_KINDS.length];
-  const floorW=900;
-  return{
-    name:`Stage ${lvIndex+1}: BOSS! ${BOSS_NAMES[kind]}`,
-    isBoss:true,
-    bossKind:kind,
-    bossHp:4+Math.floor(lvIndex/5),
-    platforms:[
-      {x:0,y:500,w:floorW,h:40,color:theme.colors[0]},
-      {x:80,y:380,w:90,h:18,color:theme.colors[1]},
-      {x:730,y:380,w:90,h:18,color:theme.colors[1]},
-      {x:400,y:300,w:100,h:18,color:theme.colors[2]},
-      {x:floorW,y:500,w:220,h:40,color:'#FFD700'},
-    ],
-    lava:[{x:-40,y:560,w:floorW+300,h:40}],
-    moving:[],
-    spinning:[],
-    checkpoints:[{x:80,y:460}],
-    finish:{x:floorW+110,y:460},
-    theme
-  };
-}
-
 // Cache generated levels
 const generatedLevels={};
 function getLevel(idx){
   if(idx<3)return levels[idx];
-  if(AUTHORED_LEVELS[idx])return AUTHORED_LEVELS[idx];
-  if(!generatedLevels[idx])generatedLevels[idx]=isBossStage(idx)?generateBossLevel(idx):generateLevel(idx);
+  if(!generatedLevels[idx])generatedLevels[idx]=generateLevel(idx);
   return generatedLevels[idx];
-}
-function bossIsDown(){
-  return !state.boss||state.boss.hp<=0;
-}
-function ensureBoss(lv){
-  if(!lv.isBoss){state.boss=null;state.bossShots=[];return;}
-  if(state.boss&&state.boss.level===state.currentLevel)return;
-  state.boss={
-    level:state.currentLevel,kind:lv.bossKind,
-    x:520,y:430,w:56,h:70,vx:1.8,vy:0,facing:1,
-    hp:lv.bossHp,maxHp:lv.bossHp,hurt:0,grounded:true,jumpT:0,shootT:0
-  };
-  state.bossShots=[];
-}
-function updateBoss(p,lv,dt){
-  const b=state.boss;
-  if(!b||b.hp<=0){
-    state.bossShots=state.bossShots.filter(s=>{s.life-=dt;return s.life>0;});
-    return false;
-  }
-  if(b.hurt>0)b.hurt--;
-  b.vy+=0.45;b.x+=b.vx;b.y+=b.vy;
-  if(b.y+b.h>500){b.y=500-b.h;b.vy=0;b.grounded=true;}
-  if(b.x<20){b.x=20;b.vx=Math.abs(b.vx);b.facing=1;}
-  if(b.x+b.w>880){b.x=880-b.w;b.vx=-Math.abs(b.vx);b.facing=-1;}
-  if(b.kind==='hopper'&&b.grounded){
-    b.vx*=0.86;
-    b.jumpT+=dt;
-    if(b.jumpT>1.05){
-      b.vy=-11;b.grounded=false;b.jumpT=0;
-      b.vx=(p.x>b.x?1:-1)*2.3;b.facing=b.vx>=0?1:-1;
-    }
-  }else if(b.kind==='charger'){
-    b.vx+=(p.x>b.x?1:-1)*0.09;
-    b.vx=Math.max(-3.4,Math.min(3.4,b.vx));
-    b.facing=b.vx>=0?1:-1;
-  }else if(b.kind==='shooter'){
-    b.vx=Math.sin(state.time*0.9)*1.5;
-    b.facing=p.x>b.x?1:-1;
-    b.shootT+=dt;
-    if(b.shootT>1.35){
-      b.shootT=0;
-      state.bossShots.push({x:b.x+b.w/2,y:b.y+24,vx:b.facing*4.2,vy:-1.6,life:2.8});
-    }
-  }
-  for(const s of state.bossShots){
-    s.x+=s.vx;s.y+=s.vy;s.vy+=0.16;s.life-=dt;
-    if(s.x>p.x&&s.x<p.x+p.w&&s.y>p.y&&s.y<p.y+p.h)return true;
-  }
-  state.bossShots=state.bossShots.filter(s=>s.life>0&&s.y<580);
-  if(rectCollide({x:p.x,y:p.y,w:p.w,h:p.h},b)){
-    const fromAbove=p.vy>1&&(p.y+p.h)<b.y+b.h*0.5;
-    if(fromAbove&&b.hurt===0){
-      b.hp--;b.hurt=22;p.vy=-11;sfxHit();
-      spawnParticles(b.x+b.w/2,b.y,'#FFD700',14,7);
-      spawnParticles(b.x+b.w/2,b.y,'#E74C3C',10,6);
-      if(b.hp<=0){
-        const bonus=20+state.currentLevel*4;
-        coins+=bonus;saveProgress();
-        showLevelFlash('BOSS DOWN! +'+bonus+'🪙');
-        sfxWin();
-        spawnParticles(b.x+b.w/2,b.y+20,'#FFD700',28,10);
-      }
-    }else if(!fromAbove){
-      return true;
-    }
-  }
-  return false;
 }
 
 function getPlayerColor(t){
@@ -644,57 +466,16 @@ function startGame(){
   state.mode=MODES.PLAY;
   state.deaths=0;state.time=0;
   state.currentLevel=0;
-  state.boss=null;state.bossShots=[];
   state.checkpoint={x:50,y:400,level:0};
   state.touchedCPs=new Set();
   // Generate coins for first few levels (more generated on the fly)
   state.levelCoins=[];
-  state.levelMoons=[];
-  for(let i=0;i<5;i++){
-    state.levelCoins[i]=generateLevelCoins(i);
-    state.levelMoons[i]=generateLevelMoons(i);
-  }
+  for(let i=0;i<5;i++)state.levelCoins[i]=generateLevelCoins(i);
   resetPlayer(false);
   showLevelFlash(levels[0].name);
 }
 
 function showLevelFlash(text){state.levelFlash=120;state.levelFlashText=text;}
-
-function completeLevel(skipped){
-  const p=state.player;
-  if(!skipped){
-    const stageBonus=5+state.currentLevel*3;
-    coins+=stageBonus;
-    moons+=1;
-  }
-  saveProgress();
-  if((state.currentLevel+1)%5===0){
-    win();
-    return;
-  }
-  state.currentLevel++;
-  if(!state.levelCoins[state.currentLevel])state.levelCoins[state.currentLevel]=generateLevelCoins(state.currentLevel);
-  if(!state.levelMoons[state.currentLevel])state.levelMoons[state.currentLevel]=generateLevelMoons(state.currentLevel);
-  p.x=50;p.y=400;p.vx=0;p.vy=0;
-  state.checkpoint={x:50,y:400,level:state.currentLevel};
-  const nl=getLevel(state.currentLevel);
-  showLevelFlash(skipped?('SKIP → '+nl.name):(nl.name+' (+'+(5+(state.currentLevel-1)*3)+'🪙)'));
-  sfxCheckpoint();
-  spawnParticles(p.x+15,p.y+18,'#FFD700',15,6);
-}
-
-function trySkipLevel(){
-  if(state.mode!==MODES.PLAY)return;
-  if(moons<SKIP_COST){
-    sfxLocked();
-    showLevelFlash('Need 🌙 '+SKIP_COST+' moons');
-    return;
-  }
-  moons-=SKIP_COST;
-  saveProgress();
-  sfxBuy();
-  completeLevel(true);
-}
 
 function die(){
   sfxDeath();state.deaths++;
@@ -727,7 +508,6 @@ function update(dt){
 
   const p=state.player;
   const lv=getLevel(state.currentLevel);
-  ensureBoss(lv);
   const gravity=0.6;const friction=0.85;
 
   let inputX=0;
@@ -777,7 +557,6 @@ function update(dt){
 
   for(const l of lv.lava){if(rectCollide({x:p.x,y:p.y,w:p.w,h:p.h},l)){die();return;}}
   if(p.y>650){die();return;}
-  if(updateBoss(p,lv,dt)){die();return;}
 
   // Coin collection
   if(state.levelCoins[state.currentLevel]){
@@ -800,10 +579,28 @@ function update(dt){
   });
 
   const fin=lv.finish;
-  if(lv.isBoss&&!bossIsDown()){/* flag locked until the boss is down */}
-  else if(Math.hypot(p.x+15-fin.x,p.y+18-fin.y)<50){
-    completeLevel(false);
-    return;
+  if(Math.hypot(p.x+15-fin.x,p.y+18-fin.y)<50){
+    // Award coins for completing a stage
+    const stageBonus=5+state.currentLevel*3;
+    coins+=stageBonus;
+    saveProgress();
+    
+    // Milestone celebration every 5 levels
+    if((state.currentLevel+1)%5===0){
+      win();
+      return;
+    }
+    
+    state.currentLevel++;
+    // Generate coins for new level
+    if(!state.levelCoins[state.currentLevel]){
+      state.levelCoins[state.currentLevel]=generateLevelCoins(state.currentLevel);
+    }
+    p.x=50;p.y=400;p.vx=0;p.vy=0;
+    state.checkpoint={x:50,y:400,level:state.currentLevel};
+    const nl=getLevel(state.currentLevel);
+    showLevelFlash(nl.name+' (+'+stageBonus+'🪙)');sfxCheckpoint();
+    spawnParticles(p.x+15,p.y+18,'#FFD700',15,6);
   }
 
   state.camera.x+=(p.x-300-state.camera.x)*0.08;
@@ -1302,50 +1099,12 @@ function render(){
   });
 
   const fin=lv.finish;
-  if(!lv.isBoss||bossIsDown()){
-    const fx=fin.x-state.camera.x,fy=fin.y-state.camera.y;
-    ctx.fillStyle='#333';ctx.fillRect(fx-3,fy-40,6,50);
-    ctx.fillStyle=state.currentLevel===levels.length-1?'#FFD700':'#4ECDC4';
-    ctx.beginPath();ctx.moveTo(fx+3,fy-40);ctx.lineTo(fx+30,fy-30);ctx.lineTo(fx+3,fy-20);ctx.fill();
-    ctx.fillStyle='rgba(255,215,0,'+(0.3+0.2*Math.sin(state.time*5))+')';
-    ctx.beginPath();ctx.arc(fx,fy-25,20,0,Math.PI*2);ctx.fill();
-  }else{
-    const fx=fin.x-state.camera.x,fy=fin.y-state.camera.y;
-    ctx.fillStyle='rgba(80,80,80,0.5)';ctx.fillRect(fx-3,fy-40,6,50);
-    ctx.fillStyle='#888';ctx.font='bold 11px \"Segoe UI\"';ctx.textAlign='center';
-    ctx.fillText('LOCKED',fx+8,fy-48);
-  }
-
-  // Boss
-  if(lv.isBoss&&state.boss){
-    const b=state.boss;
-    const bx=b.x-state.camera.x,by=b.y-state.camera.y;
-    if(b.hp>0){
-      ctx.save();
-      if(b.facing===-1){ctx.translate(bx+b.w/2,0);ctx.scale(-1,1);ctx.translate(-bx-b.w/2,0);}
-      ctx.globalAlpha=b.hurt>0&&Math.floor(state.time*20)%2===0?0.45:1;
-      ctx.fillStyle=b.kind==='shooter'?'#C0392B':b.kind==='charger'?'#8E44AD':'#E67E22';
-      ctx.fillRect(bx+4,by+16,b.w-8,b.h-16);
-      ctx.fillStyle='#FFD4A6';ctx.fillRect(bx+10,by,b.w-20,20);
-      ctx.fillStyle='#111';ctx.fillRect(bx+16,by+6,6,6);ctx.fillRect(bx+b.w-22,by+6,6,6);
-      ctx.fillStyle='#E74C3C';ctx.fillRect(bx+18,by+14,b.w-36,3);
-      if(b.kind==='shooter'){
-        ctx.fillStyle='#FF4500';ctx.fillRect(bx+b.w-10,by+22,12,8);
-      }
-      ctx.restore();
-      const barW=80,barX=bx+b.w/2-barW/2,barY=by-16;
-      ctx.fillStyle='#111';ctx.fillRect(barX,barY,barW,8);
-      ctx.fillStyle='#E74C3C';ctx.fillRect(barX,barY,barW*(b.hp/b.maxHp),8);
-      ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.strokeRect(barX,barY,barW,8);
-      ctx.fillStyle='#FFD700';ctx.font='bold 11px \"Segoe UI\"';ctx.textAlign='center';
-      ctx.fillText('BOSS',bx+b.w/2,barY-4);
-    }
-    state.bossShots.forEach(s=>{
-      const sx=s.x-state.camera.x,sy=s.y-state.camera.y;
-      ctx.fillStyle='#FF4500';ctx.beginPath();ctx.arc(sx,sy,7,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#FFD700';ctx.beginPath();ctx.arc(sx-2,sy-2,3,0,Math.PI*2);ctx.fill();
-    });
-  }
+  const fx=fin.x-state.camera.x,fy=fin.y-state.camera.y;
+  ctx.fillStyle='#333';ctx.fillRect(fx-3,fy-40,6,50);
+  ctx.fillStyle=state.currentLevel===levels.length-1?'#FFD700':'#4ECDC4';
+  ctx.beginPath();ctx.moveTo(fx+3,fy-40);ctx.lineTo(fx+30,fy-30);ctx.lineTo(fx+3,fy-20);ctx.fill();
+  ctx.fillStyle='rgba(255,215,0,'+(0.3+0.2*Math.sin(state.time*5))+')';
+  ctx.beginPath();ctx.arc(fx,fy-25,20,0,Math.PI*2);ctx.fill();
 
   // Player
   if(state.mode!==MODES.DEAD){
