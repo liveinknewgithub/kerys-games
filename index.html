@@ -475,18 +475,13 @@ function generateLevel(lvIndex){
     checkpoints.push({x:platforms[i].x+platforms[i].w/2,y:platforms[i].y-40});
   }
 
-  // Neon City checkpoint 2: extra landing so the lava gap is jumpable
-  if(theme.name==='Neon City'){
-    if(checkpoints.length<2&&platforms.length>5){
-      const p=platforms[Math.min(6,platforms.length-2)];
-      checkpoints.push({x:p.x+p.w/2,y:p.y-40});
-    }
-    if(checkpoints[1]){
-      const cp=checkpoints[1];
-      platforms.splice(platforms.length-1,0,{
-        x:cp.x+45,y:cp.y+28,w:100,h:40,color:theme.colors[2]
-      });
-    }
+  // Stage 9 Neon City: extra block OVER the spinner before checkpoint 2
+  if(lvIndex===8&&theme.name==='Neon City'&&checkpoints[1]&&spinning.length){
+    const cp2=checkpoints[1];
+    const spinner=spinning.filter(s=>s.x<cp2.x).sort((a,b)=>b.x-a.x)[0]||spinning[0];
+    platforms.push({
+      x:spinner.x-50,y:spinner.y-120,w:100,h:24,color:'#00F0FF'
+    });
   }
 
   return{
