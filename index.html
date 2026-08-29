@@ -475,12 +475,20 @@ function generateLevel(lvIndex){
     checkpoints.push({x:platforms[i].x+platforms[i].w/2,y:platforms[i].y-40});
   }
 
-  // Stage 9 Neon City: extra block OVER the spinner before checkpoint 2
+  // Stage 9 Neon City: reachable block OVER the spinner before checkpoint 2
   if(lvIndex===8&&theme.name==='Neon City'&&checkpoints[1]&&spinning.length){
     const cp2=checkpoints[1];
     const spinner=spinning.filter(s=>s.x<cp2.x).sort((a,b)=>b.x-a.x)[0]||spinning[0];
+    const before=platforms.filter(p=>p.x+p.w<spinner.x-10).sort((a,b)=>b.x-a.x)[0];
+    if(before){
+      const gapStart=before.x+before.w;
+      const gapEnd=spinner.x-30;
+      platforms.push({
+        x:gapStart+20,y:Math.min(before.y,spinner.y+20)-10,w:Math.max(70,Math.min(90,gapEnd-gapStart-40)),h:40,color:'#F5FF00'
+      });
+    }
     platforms.push({
-      x:spinner.x-50,y:spinner.y-120,w:100,h:24,color:'#00F0FF'
+      x:spinner.x-55,y:spinner.y-50,w:120,h:28,color:'#F5FF00'
     });
   }
 
