@@ -194,7 +194,6 @@ let vipPopupTimer=0;
 let vipPopupItem=null;
 // Preview system: temporarily show an item on the character without equipping
 let previewItem=null; // {cat, id} or null
-let previewEquipped=null; // snapshot of equipped with preview applied
 
 function getPreviewEquipped(){
   if(!previewItem)return equipped;
@@ -458,7 +457,7 @@ function resetPlayer(toCheckpoint){
     p.x=50;p.y=400;state.currentLevel=0;
     state.checkpoint={x:50,y:400,level:0};
   }
-  p.vx=0;p.vy=0;p.grounded=false;
+  p.vx=0;p.vy=0;p.grounded=false;p.standingOn=null;
 }
 
 function startGame(){
@@ -468,6 +467,9 @@ function startGame(){
   state.currentLevel=0;
   state.checkpoint={x:50,y:400,level:0};
   state.touchedCPs=new Set();
+  state.camera.x=0;state.camera.y=0;
+  state.particles=[];
+  state.levelFlash=0;
   // Generate coins for first few levels (more generated on the fly)
   state.levelCoins=[];
   for(let i=0;i<5;i++)state.levelCoins[i]=generateLevelCoins(i);
@@ -522,14 +524,19 @@ function update(dt){
 
   p.vx*=friction;p.vy+=gravity;
   p.x+=p.vx;p.y+=p.vy;
-  p.grounded=false;
 
   const allPlats=[...lv.platforms];
   lv.moving.forEach(m=>{
+    const ox=m.x,oy=m.y;
     if(m.axis==='x')m.x=m.sx+(m.ex-m.sx)*(0.5+0.5*Math.sin(state.time*m.speed));
     else m.y=m.sy+(m.ey-m.sy)*(0.5+0.5*Math.sin(state.time*m.speed));
+    m._dx=m.x-ox;m._dy=m.y-oy;
     allPlats.push(m);
   });
+
+  // Ride moving platforms: carry the player with the platform they stood on last frame
+  if(p.standingOn&&p.standingOn._dx!==undefined){p.x+=p.standingOn._dx;p.y+=p.standingOn._dy;}
+  p.grounded=false;p.standingOn=null;
 
   lv.spinning.forEach(s=>{s.r+=s.speed*dt;});
 
@@ -537,7 +544,7 @@ function update(dt){
     if(rectCollide({x:p.x,y:p.y,w:p.w,h:p.h},pl)){
       const ob=p.y+p.h-pl.y,ot=pl.y+pl.h-p.y,ol=p.x+p.w-pl.x,or2=pl.x+pl.w-p.x;
       const mn=Math.min(ob,ot,ol,or2);
-      if(mn===ob&&p.vy>0){p.y=pl.y-p.h;p.vy=0;p.grounded=true;if(!p.wasGrounded){sfxLand();spawnParticles(p.x+15,p.y+p.h,'#ffffff',3,2);}}
+      if(mn===ob&&p.vy>0){p.y=pl.y-p.h;p.vy=0;p.grounded=true;p.standingOn=pl;if(!p.wasGrounded){sfxLand();spawnParticles(p.x+15,p.y+p.h,'#ffffff',3,2);}}
       else if(mn===ot&&p.vy<0){p.y=pl.y+pl.h;p.vy=0;}
       else if(mn===ol){p.x=pl.x-p.w;p.vx=0;}
       else if(mn===or2){p.x=pl.x+pl.w;p.vx=0;}
@@ -596,7 +603,7 @@ function update(dt){
     if(!state.levelCoins[state.currentLevel]){
       state.levelCoins[state.currentLevel]=generateLevelCoins(state.currentLevel);
     }
-    p.x=50;p.y=400;p.vx=0;p.vy=0;
+    p.x=50;p.y=400;p.vx=0;p.vy=0;p.standingOn=null;
     state.checkpoint={x:50,y:400,level:state.currentLevel};
     const nl=getLevel(state.currentLevel);
     showLevelFlash(nl.name+' (+'+stageBonus+'🪙)');sfxCheckpoint();
@@ -1201,6 +1208,7 @@ function render(){
 
 // ===================== CLICK HANDLING =====================
 canvas.addEventListener('click',e=>{
+  if(AC.state==='suspended')AC.resume();
   const rect=canvas.getBoundingClientRect();
   const x=(e.clientX-rect.left)*(800/rect.width);
   const y=(e.clientY-rect.top)*(600/rect.height);
@@ -1215,7 +1223,7 @@ canvas.addEventListener('click',e=>{
     if(x>120&&x<320&&y>380&&y<430){
       state.currentLevel++;
       if(!state.levelCoins[state.currentLevel])state.levelCoins[state.currentLevel]=generateLevelCoins(state.currentLevel);
-      state.player.x=50;state.player.y=400;state.player.vx=0;state.player.vy=0;
+      state.player.x=50;state.player.y=400;state.player.vx=0;state.player.vy=0;state.player.standingOn=null;
       state.checkpoint={x:50,y:400,level:state.currentLevel};
       state.mode=MODES.PLAY;
       const nl=getLevel(state.currentLevel);
@@ -1243,7 +1251,7 @@ canvas.addEventListener('click',e=>{
     }
 
     // Back button
-    if(x>20&&x<120&&y>550&&y<586){state.mode=MODES.MENU;return;}
+    if(x>20&&x<120&&y>550&&y<586){state.mode=MODES.MENU;showVIPPopup=false;previewItem=null;return;}
 
     // Category tabs
     SHOP_CATS.forEach((cat,i)=>{
@@ -1336,7 +1344,7 @@ document.addEventListener('keydown',e=>{
     else document.exitFullscreen?.();
   }
   if(e.code==='Space')e.preventDefault();
-  if(e.code==='Escape'&&state.mode===MODES.SHOP){state.mode=MODES.MENU;}
+  if(e.code==='Escape'&&state.mode===MODES.SHOP){state.mode=MODES.MENU;showVIPPopup=false;previewItem=null;}
 });
 document.addEventListener('keyup',e=>{keys[e.code]=false;});
 
