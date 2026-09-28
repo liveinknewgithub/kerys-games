@@ -491,6 +491,11 @@ function generateLevel(lvIndex){
     });
   }
 
+  // Stage 11: gentler spinners — slower spin and shorter arms (still dangerous, just fair)
+  if(lvIndex===10){
+    spinning.forEach(s=>{s.speed*=0.6;s.armW*=0.75;});
+  }
+
   return{
     name:`Stage ${lvIndex+1}: ${theme.name}`,
     platforms,lava,moving,spinning,checkpoints,
