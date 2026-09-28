@@ -496,6 +496,21 @@ function generateLevel(lvIndex){
     spinning.forEach(s=>{s.speed*=0.6;s.armW*=0.75;});
   }
 
+  // Stage 12: drop spinners whose platform is too narrow for safe footing around
+  // the hub (hub sits 30px above the platform = inside the player's body box,
+  // so a centered spinner on a <72px platform can never be stood next to) +
+  // drop stacked duplicates + ease the survivors
+  if(lvIndex===11){
+    const kept=[];
+    for(const s of spinning){
+      const host=platforms.find(p=>s.x>=p.x&&s.x<=p.x+p.w);
+      if(host&&host.w<72)continue;
+      if(kept.some(k=>Math.abs(k.x-s.x)<40))continue;
+      s.speed*=0.6;s.armW*=0.75;kept.push(s);
+    }
+    spinning.length=0;spinning.push(...kept);
+  }
+
   return{
     name:`Stage ${lvIndex+1}: ${theme.name}`,
     platforms,lava,moving,spinning,checkpoints,
