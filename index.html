@@ -491,9 +491,14 @@ function generateLevel(lvIndex){
     });
   }
 
-  // Stage 11: gentler spinners — slower spin and shorter arms (still dangerous, just fair)
+  // Stage 11: ONE slow, short-armed spinner (the stacked pair was a wall)
   if(lvIndex===10){
-    spinning.forEach(s=>{s.speed*=0.6;s.armW*=0.75;});
+    const kept=[];
+    for(const s of spinning){
+      if(kept.some(k=>Math.abs(k.x-s.x)<40))continue; // stacked duplicate
+      s.speed*=0.45;s.armW*=0.6;kept.push(s);
+    }
+    spinning.length=0;spinning.push(...kept);
   }
 
   // Stage 12: drop spinners whose platform is too narrow for safe footing around
@@ -668,7 +673,9 @@ function startGame(){
   state.currentLevel=0;
   state.boss=null;state.bossShots=[];
   state.checkpoint={x:50,y:400,level:0};
-  state.touchedCPs=new Set();
+  // Keep checkpoints touched in earlier sessions (they're saved) so PLAY can resume
+  const savedCPs=state.touchedCPs;
+  state.touchedCPs=new Set(savedCPs);
   // Generate coins for first few levels (more generated on the fly)
   state.levelCoins=[];
   state.levelMoons=[];
@@ -676,8 +683,28 @@ function startGame(){
     state.levelCoins[i]=generateLevelCoins(i);
     state.levelMoons[i]=generateLevelMoons(i);
   }
-  resetPlayer(false);
-  showLevelFlash(levels[0].name);
+  // Resume at the furthest checkpoint ever touched, if any
+  let resume=null;
+  savedCPs.forEach(k=>{
+    const lvIdx=parseInt(k.split('-')[0],10);
+    if(isNaN(lvIdx)||lvIdx<1)return;
+    getLevel(lvIdx).checkpoints.forEach(cp=>{
+      if(k===lvIdx+'-'+cp.x+'-'+cp.y){
+        if(!resume||lvIdx>resume.level||(lvIdx===resume.level&&cp.x>resume.x))resume={level:lvIdx,x:cp.x,y:cp.y};
+      }
+    });
+  });
+  if(resume){
+    state.currentLevel=resume.level;
+    state.checkpoint={x:resume.x,y:resume.y-50,level:resume.level};
+    if(!state.levelCoins[resume.level])state.levelCoins[resume.level]=generateLevelCoins(resume.level);
+    if(!state.levelMoons[resume.level])state.levelMoons[resume.level]=generateLevelMoons(resume.level);
+    resetPlayer(true);
+    showLevelFlash(getLevel(resume.level).name);
+  }else{
+    resetPlayer(false);
+    showLevelFlash(levels[0].name);
+  }
 }
 
 function showLevelFlash(text){state.levelFlash=120;state.levelFlashText=text;}
