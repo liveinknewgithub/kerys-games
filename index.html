@@ -511,6 +511,17 @@ function generateLevel(lvIndex){
     spinning.length=0;spinning.push(...kept);
   }
 
+  // Stage 13: drop the spinner on the too-narrow platform (same death trap as Stage 12)
+  if(lvIndex===12){
+    const kept=[];
+    for(const s of spinning){
+      const host=platforms.find(p=>s.x>=p.x&&s.x<=p.x+p.w);
+      if(host&&host.w<72)continue;
+      kept.push(s);
+    }
+    spinning.length=0;spinning.push(...kept);
+  }
+
   return{
     name:`Stage ${lvIndex+1}: ${theme.name}`,
     platforms,lava,moving,spinning,checkpoints,
