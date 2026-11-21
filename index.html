@@ -1683,12 +1683,20 @@ canvas.addEventListener('touchstart',handleTouchStart,{passive:false});
 canvas.addEventListener('touchend',handleTouchEnd);
 canvas.addEventListener('touchcancel',handleTouchEnd);
 
-// Game loop
-let lastTime=0;
+// Game loop: fixed-step physics at 60 steps/sec of REAL time, so the game
+// runs at the original speed on any screen (120Hz displays used to run it 2x fast)
+let lastTime=0,loopAcc=0;
 function gameLoop(ts){
-  const dt=Math.min((ts-lastTime)/1000,0.05);
+  if(!lastTime)lastTime=ts;
+  let frame=(ts-lastTime)/1000;
   lastTime=ts;
-  update(1/60);
+  if(frame<0)frame=0;
+  if(frame>0.25)frame=0.25;
+  loopAcc+=frame;
+  const step=1/60;
+  let n=0;
+  while(loopAcc>=step&&n<5){update(step);loopAcc-=step;n++;}
+  if(n===5)loopAcc=0;
   render();
   requestAnimationFrame(gameLoop);
 }
